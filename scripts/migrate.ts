@@ -2,6 +2,29 @@ import { neon } from "@neondatabase/serverless";
 import { readFileSync, readdirSync } from "fs";
 import { join } from "path";
 
+function splitStatements(sql: string): string[] {
+  const results: string[] = [];
+  let current = "";
+  let inDollarQuote = false;
+
+  const lines = sql.split("\n");
+  for (const line of lines) {
+    if (line.includes("$$")) {
+      const count = (line.match(/\$\$/g) || []).length;
+      if (count % 2 === 1) inDollarQuote = !inDollarQuote;
+    }
+    current += line + "\n";
+    if (!inDollarQuote && line.trimEnd().endsWith(";")) {
+      const trimmed = current.trim();
+      if (trimmed && trimmed !== ";") results.push(trimmed);
+      current = "";
+    }
+  }
+  const remaining = current.trim();
+  if (remaining && remaining !== ";") results.push(remaining);
+  return results;
+}
+
 async function migrate() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
@@ -16,8 +39,12 @@ async function migrate() {
   for (const file of files) {
     console.log(`Running ${file}...`);
     const content = readFileSync(join(sqlDir, file), "utf-8");
-    // neon() is a tagged template function — wrap raw SQL string
-    await sql(content as unknown as TemplateStringsArray);
+    // Neon HTTP driver can't run multiple statements at once — split on semicolons
+    // but preserve $$ function bodies
+    const statements = splitStatements(content);
+    for (const stmt of statements) {
+      await sql.query(stmt);
+    }
     console.log(`  ✓ ${file}`);
   }
 

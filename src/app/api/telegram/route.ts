@@ -1,3 +1,5 @@
+export const maxDuration = 15;
+
 import { Bot, webhookCallback } from "grammy";
 import { captureThought } from "@/lib/capture";
 import { searchThoughts } from "@/lib/db";
