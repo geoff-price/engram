@@ -55,73 +55,33 @@ export async function listThoughts(
   const sql = getSQL();
   const { limit = 20, type, topic, since } = options;
 
-  // Build dynamic query — each filter narrows results
-  // Using tagged templates with conditional logic
-  if (type && topic && since) {
-    const rows = await sql`
-      SELECT id, content, metadata, source, created_at FROM thoughts
-      WHERE metadata->>'type' = ${type}
-        AND metadata->'topics' ? ${topic}
-        AND created_at >= ${since}::timestamptz
-      ORDER BY created_at DESC LIMIT ${limit}
-    `;
-    return rows as unknown as Thought[];
-  }
-  if (type && topic) {
-    const rows = await sql`
-      SELECT id, content, metadata, source, created_at FROM thoughts
-      WHERE metadata->>'type' = ${type}
-        AND metadata->'topics' ? ${topic}
-      ORDER BY created_at DESC LIMIT ${limit}
-    `;
-    return rows as unknown as Thought[];
-  }
-  if (type && since) {
-    const rows = await sql`
-      SELECT id, content, metadata, source, created_at FROM thoughts
-      WHERE metadata->>'type' = ${type}
-        AND created_at >= ${since}::timestamptz
-      ORDER BY created_at DESC LIMIT ${limit}
-    `;
-    return rows as unknown as Thought[];
-  }
-  if (topic && since) {
-    const rows = await sql`
-      SELECT id, content, metadata, source, created_at FROM thoughts
-      WHERE metadata->'topics' ? ${topic}
-        AND created_at >= ${since}::timestamptz
-      ORDER BY created_at DESC LIMIT ${limit}
-    `;
-    return rows as unknown as Thought[];
-  }
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
+  let idx = 1;
+
   if (type) {
-    const rows = await sql`
-      SELECT id, content, metadata, source, created_at FROM thoughts
-      WHERE metadata->>'type' = ${type}
-      ORDER BY created_at DESC LIMIT ${limit}
-    `;
-    return rows as unknown as Thought[];
+    conditions.push(`metadata->>'type' = $${idx++}`);
+    params.push(type);
   }
   if (topic) {
-    const rows = await sql`
-      SELECT id, content, metadata, source, created_at FROM thoughts
-      WHERE metadata->'topics' ? ${topic}
-      ORDER BY created_at DESC LIMIT ${limit}
-    `;
-    return rows as unknown as Thought[];
+    conditions.push(`metadata->'topics' ? $${idx++}`);
+    params.push(topic);
   }
   if (since) {
-    const rows = await sql`
-      SELECT id, content, metadata, source, created_at FROM thoughts
-      WHERE created_at >= ${since}::timestamptz
-      ORDER BY created_at DESC LIMIT ${limit}
-    `;
-    return rows as unknown as Thought[];
+    conditions.push(`created_at >= $${idx++}::timestamptz`);
+    params.push(since);
   }
 
-  const rows = await sql`
-    SELECT id, content, metadata, source, created_at FROM thoughts
-    ORDER BY created_at DESC LIMIT ${limit}
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  params.push(limit);
+
+  const query = `
+    SELECT id, content, metadata, source, created_at
+    FROM thoughts ${where}
+    ORDER BY created_at DESC
+    LIMIT $${idx}
   `;
+
+  const rows = await sql.query(query, params);
   return rows as unknown as Thought[];
 }
