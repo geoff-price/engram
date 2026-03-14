@@ -78,10 +78,13 @@ function getBot(): Bot {
 }
 
 export async function POST(req: Request) {
-  // Validate Telegram webhook secret
-  const secret = req.headers.get("x-telegram-bot-api-secret-token");
+  // Validate Telegram webhook secret — reject if not configured or mismatched
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (expectedSecret && secret !== expectedSecret) {
+  if (!expectedSecret) {
+    return Response.json({ error: "Telegram webhook not configured" }, { status: 503 });
+  }
+  const secret = req.headers.get("x-telegram-bot-api-secret-token");
+  if (secret !== expectedSecret) {
     return Response.json({ error: "Invalid webhook secret" }, { status: 401 });
   }
 

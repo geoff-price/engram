@@ -4,9 +4,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { captureThought } from "@/lib/capture";
 import { searchThoughts, listThoughts } from "@/lib/db";
 import { generateEmbedding } from "@/lib/ai";
+
+const MAX_CONTENT_LENGTH = 10_000;
 
 function createBrainMcp(): McpServer {
   const server = new McpServer({
@@ -17,8 +20,12 @@ function createBrainMcp(): McpServer {
   server.tool(
     "capture_thought",
     "Save a thought to your Engram. It will be automatically embedded and classified.",
-    { content: z.string().describe("The thought, note, or observation to capture") },
+    { content: z.string().max(MAX_CONTENT_LENGTH).describe("The thought, note, or observation to capture") },
     async ({ content }) => {
+      const rl = checkRateLimit();
+      if (!rl.ok) {
+        return { content: [{ type: "text" as const, text: "Rate limit exceeded. Try again in a minute." }] };
+      }
       const result = await captureThought(content, "mcp");
       return {
         content: [
