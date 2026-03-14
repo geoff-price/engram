@@ -188,7 +188,7 @@ brain() {
 Then capture from anywhere:
 
 ```bash
-brain "I need to call Sarah about the project deadline on Friday"
+brain "Book the Lake Tahoe cabin before June — ask Sarah about group size"
 ```
 
 ## Expected Outcome
