@@ -121,7 +121,7 @@ engram() {
 }
 ```
 
-Then: `engram "I need to call Sarah about the project deadline on Friday"`
+Then: `engram "Book the Lake Tahoe cabin before June — ask Sarah about group size"`
 
 ## Running Tests
 
