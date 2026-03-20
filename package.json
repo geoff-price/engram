@@ -9,6 +9,7 @@
     "migrate": "tsx scripts/migrate.ts",
     "generate-key": "tsx scripts/generate-key.ts",
     "set-telegram-webhook": "tsx scripts/set-telegram-webhook.ts",
+    "google-auth": "tsx scripts/google-auth.ts",
     "test": "vitest run"
   },
   "dependencies": {

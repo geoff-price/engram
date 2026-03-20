@@ -8,6 +8,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { captureThought } from "@/lib/capture";
 import { searchThoughts, listThoughts } from "@/lib/db";
 import { generateEmbedding } from "@/lib/ai";
+import { registerLifeEngineTools } from "@/lib/life-engine-tools";
 
 const MAX_CONTENT_LENGTH = 10_000;
 
@@ -105,6 +106,8 @@ function createBrainMcp(): McpServer {
       return { content: [{ type: "text" as const, text }] };
     },
   );
+
+  registerLifeEngineTools(server);
 
   return server;
 }

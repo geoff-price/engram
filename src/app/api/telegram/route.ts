@@ -1,9 +1,44 @@
-export const maxDuration = 15;
+export const maxDuration = 30;
 
 import { Bot, webhookCallback } from "grammy";
 import { captureThought } from "@/lib/capture";
 import { searchThoughts } from "@/lib/db";
 import { generateEmbedding } from "@/lib/ai";
+import { getTimezone } from "@/lib/calendar";
+import type { CalendarEventResult } from "@/lib/types";
+
+function formatCalendarReceipt(results: CalendarEventResult[]): string {
+  const timezone = getTimezone();
+  const created = results.filter((e) => e.status === "created");
+  const failed = results.filter((e) => e.status === "failed");
+  let text = "";
+
+  if (created.length > 0) {
+    text += "\n\n✅ Added to Google Calendar:";
+    for (const event of created) {
+      const start = new Date(event.start);
+      const dateStr = start.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        timeZone: timezone,
+      });
+      const timeStr = start.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: timezone,
+      });
+      text += `\n• ${event.title} — ${dateStr} @ ${timeStr}`;
+      if (event.location) text += `\n  📍 ${event.location}`;
+    }
+  }
+
+  if (failed.length > 0) {
+    text += `\n\n⚠️ ${failed.length} event${failed.length > 1 ? "s" : ""} failed to add to calendar`;
+  }
+
+  return text;
+}
 
 function createBot(): Bot {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -11,11 +46,12 @@ function createBot(): Bot {
 
   const bot = new Bot(token);
 
-  bot.command("start", (ctx) =>
-    ctx.reply(
-      "🧠 Engram connected.\n\nSend me any thought, note, or idea — I'll classify and store it.\n\nCommands:\n/search <query> — find related thoughts\n/start — show this message",
-    ),
-  );
+  bot.command("start", (ctx) => {
+    const chatId = ctx.chat.id;
+    return ctx.reply(
+      `🧠 Engram connected.\n\nSend me any thought, note, or idea — I'll classify and store it.\n\nSay "add to my calendar" to create Google Calendar events.\n\nCommands:\n/search <query> — find related thoughts\n/start — show this message\n\nYour chat ID: ${chatId}\n→ Add TELEGRAM_CHAT_ID=${chatId} to your environment variables to enable proactive briefings.`,
+    );
+  });
 
   bot.command("search", async (ctx) => {
     const query = ctx.match;
@@ -47,13 +83,17 @@ function createBot(): Bot {
 
     const result = await captureThought(ctx.message.text, "telegram");
     const topics = result.metadata.topics.join(", ") || "none";
-    await ctx.reply(
-      `✓ Captured as ${result.metadata.type}\nTopics: ${topics}${
-        result.metadata.action_items.length
-          ? `\nAction items: ${result.metadata.action_items.join("; ")}`
-          : ""
-      }`,
-    );
+    let reply = `✓ Captured as ${result.metadata.type}\nTopics: ${topics}`;
+
+    if (result.metadata.action_items.length) {
+      reply += `\nAction items: ${result.metadata.action_items.join("; ")}`;
+    }
+
+    if (result.calendarResults?.length) {
+      reply += formatCalendarReceipt(result.calendarResults);
+    }
+
+    await ctx.reply(reply);
   });
 
   // Capture photo captions
@@ -64,7 +104,13 @@ function createBot(): Bot {
     }
 
     const result = await captureThought(caption, "telegram");
-    await ctx.reply(`✓ Captured caption as ${result.metadata.type}`);
+    let reply = `✓ Captured caption as ${result.metadata.type}`;
+
+    if (result.calendarResults?.length) {
+      reply += formatCalendarReceipt(result.calendarResults);
+    }
+
+    await ctx.reply(reply);
   });
 
   return bot;
