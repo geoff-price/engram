@@ -89,15 +89,18 @@ function createBot(): Bot {
     if (ctx.message.text.startsWith("/")) return;
 
     const result = await captureThought(ctx.message.text, "telegram");
-    const topics = result.metadata.topics.join(", ") || "none";
-    let reply = `✓ Captured as ${result.metadata.type}\nTopics: ${topics}`;
-
-    if (result.metadata.action_items.length) {
-      reply += `\nAction items: ${result.metadata.action_items.join("; ")}`;
-    }
+    let reply: string;
 
     if (result.calendarResults?.length) {
-      reply += formatCalendarReceipt(result.calendarResults);
+      // Calendar-focused reply — skip metadata noise
+      reply = "✓ Saved" + formatCalendarReceipt(result.calendarResults);
+    } else {
+      // Normal thought reply
+      const topics = result.metadata.topics.join(", ") || "none";
+      reply = `✓ Captured as ${result.metadata.type}\nTopics: ${topics}`;
+      if (result.metadata.action_items.length) {
+        reply += `\nAction items: ${result.metadata.action_items.join("; ")}`;
+      }
     }
 
     await ctx.reply(reply);
