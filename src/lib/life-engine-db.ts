@@ -262,3 +262,29 @@ export async function listEvolutions(
   const rows = await sql`SELECT * FROM evolution ORDER BY created_at DESC`;
   return rows as unknown as Evolution[];
 }
+
+// --- Telegram Conversation History ---
+
+export async function saveTelegramMessage(
+  role: "user" | "assistant",
+  content: string,
+): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    INSERT INTO telegram_messages (role, content)
+    VALUES (${role}, ${content})
+  `;
+}
+
+export async function getRecentTelegramMessages(
+  limit = 10,
+): Promise<{ role: "user" | "assistant"; content: string }[]> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT role, content FROM telegram_messages
+    ORDER BY created_at DESC
+    LIMIT ${limit}
+  `;
+  // Reverse so oldest first (chronological order)
+  return (rows as unknown as { role: "user" | "assistant"; content: string }[]).reverse();
+}

@@ -6,6 +6,7 @@ import { captureThought } from "@/lib/capture";
 import { searchThoughts } from "@/lib/db";
 import { generateEmbedding } from "@/lib/ai";
 import { getTimezone } from "@/lib/calendar";
+import { saveTelegramMessage, getRecentTelegramMessages } from "@/lib/life-engine-db";
 import type { CalendarEventResult } from "@/lib/types";
 
 function formatCalendarReceipt(results: CalendarEventResult[]): string {
@@ -90,11 +91,24 @@ function createBot(): Bot {
 
     try {
       const { runLifeEngine } = await import("@/lib/life-engine-agent");
+
+      // Fetch recent conversation for context
+      const history = await getRecentTelegramMessages(10).catch(() => []);
+
+      // Save user message
+      await saveTelegramMessage("user", ctx.message.text).catch(() => {});
+
       const result = await runLifeEngine({
         mode: "reactive",
         userMessage: ctx.message.text,
+        history,
       });
-      await ctx.reply(result.response || "✓");
+
+      const reply = result.response || "✓";
+      await ctx.reply(reply);
+
+      // Save agent response
+      await saveTelegramMessage("assistant", reply).catch(() => {});
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error("[telegram] agent error:", errMsg, err);

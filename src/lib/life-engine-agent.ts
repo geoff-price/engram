@@ -1,4 +1,4 @@
-import { generateText, tool, type ToolSet } from "ai";
+import { generateText, tool, type ToolSet, type CoreMessage } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { getTimezone } from "./calendar";
@@ -123,19 +123,21 @@ Evening:
 5. One evolution suggestion per week max.
 6. Respect quiet hours (8 PM – 6 AM).`;
 
-const REACTIVE_SYSTEM_PROMPT = `You are a personal assistant responding to a Telegram message. Determine what the user wants and act on it.
+const REACTIVE_SYSTEM_PROMPT = `You are a personal assistant responding to Telegram messages. You have conversation history for context. Determine what the user wants and act on it.
 
 ## Intent Detection
 
-Analyze the message and take the appropriate action:
+Analyze the message (and conversation history) and take the appropriate action:
 
+- **Greeting or casual chat** ("hello", "hey", "thanks", "ok") → Just respond naturally. Do NOT capture these as thoughts.
+- **Follow-up question** (references something from recent conversation) → Use conversation history to understand context, then answer using the appropriate tools.
 - **Habit confirmation** ("finished my run", "did my meditation", "worked out") → Find the matching habit via list_habits, then log_habit. Reply with encouragement and streak info.
 - **Check-in** ("feeling tired", "mood 3 energy 4", "great day", "exhausted") → Extract mood and energy (1-5 scale), submit_checkin. If they only give one number or a description, infer reasonable values.
 - **Evolution approval** ("yes", "approve", "do it", "sounds good") → Check for pending evolution suggestions via list_evolutions, update_evolution to approved.
 - **Evolution rejection** ("no", "nah", "skip", "don't change that") → Check for pending suggestions, update_evolution to rejected.
 - **Question about their data** ("how did I sleep this week", "habit streak", "what's on my calendar") → Query the relevant tools and answer.
 - **Calendar question** ("what's today look like", "any meetings tomorrow") → list_calendar_events and respond.
-- **Memory/thought** (anything else) → capture_thought to save it to Engram.
+- **Substantive thought or note** (an idea, observation, plan, reminder, or information worth remembering) → capture_thought to save it to Engram.
 
 ## Tone
 
@@ -144,7 +146,7 @@ Warm, concise, coach-like. Use short sentences. One or two emoji max. No walls o
 ## Rules
 
 - Always acknowledge what you did ("Logged your run! 🏃", "Check-in saved. Mood 3, Energy 4.")
-- If you're unsure about intent, capture it as a thought and confirm.
+- Do NOT capture greetings, follow-up questions, or casual chat as thoughts. Only use capture_thought for substantive content worth remembering.
 - Never ask more than one question at a time.`;
 
 function buildTools(mode: "proactive" | "reactive") {
@@ -373,8 +375,9 @@ export interface LifeEngineResult {
 export async function runLifeEngine(options: {
   mode: "proactive" | "reactive";
   userMessage?: string;
+  history?: { role: "user" | "assistant"; content: string }[];
 }): Promise<LifeEngineResult> {
-  const { mode, userMessage } = options;
+  const { mode, userMessage, history } = options;
   const timezone = getTimezone();
   const now = new Date();
   const timeStr = now.toLocaleString("en-US", { timeZone: timezone });
@@ -397,27 +400,49 @@ Today: ${today} (${dayOfWeek})
 Time window: ${window}
 Hour: ${hour}, Minute: ${minute}`;
 
-  const prompt =
-    mode === "proactive"
-      ? `${contextPrefix}\n\nRun the core loop for this time window. Check for duplicates first, then decide what to do.`
-      : `${contextPrefix}\n\nUser message: "${userMessage}"\n\nDetermine intent and act on it. Return a concise response for the user.`;
-
   const tools = buildTools(mode);
+
+  if (mode === "proactive") {
+    const result = await generateText({
+      model: getModel(),
+      system: systemPrompt,
+      prompt: `${contextPrefix}\n\nRun the core loop for this time window. Check for duplicates first, then decide what to do.`,
+      tools,
+      maxSteps: 10,
+    });
+
+    return {
+      response: result.text,
+      actions: result.steps.flatMap((s) => s.toolCalls).map((tc) => tc.toolName),
+    };
+  }
+
+  // Reactive mode: build messages array with conversation history
+  const messages: CoreMessage[] = [];
+
+  // Include conversation history for context
+  if (history?.length) {
+    for (const msg of history) {
+      messages.push({ role: msg.role, content: msg.content });
+    }
+  }
+
+  // Add current message with time context
+  messages.push({
+    role: "user",
+    content: `${contextPrefix}\n\n${userMessage}`,
+  });
 
   const result = await generateText({
     model: getModel(),
     system: systemPrompt,
-    prompt,
+    messages,
     tools,
     maxSteps: 10,
   });
 
-  const actions = result.steps
-    .flatMap((step) => step.toolCalls)
-    .map((tc) => tc.toolName);
-
   return {
     response: result.text,
-    actions,
+    actions: result.steps.flatMap((s) => s.toolCalls).map((tc) => tc.toolName),
   };
 }
