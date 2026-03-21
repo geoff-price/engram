@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { detectCalendarTrigger } from "../capture";
+import { detectCalendarTrigger, fixEndTimes } from "../capture";
 import { resolveColorId, isCalendarConfigured, getTimezone } from "../calendar";
 import { calendarExtractionSchema } from "../types";
 
@@ -209,6 +209,50 @@ describe("calendarExtractionSchema", () => {
         events: [{ title: "Test" }],
       }),
     ).toThrow();
+  });
+});
+
+describe("fixEndTimes", () => {
+  it("corrects 1-hour default when text has explicit range", () => {
+    const events = [
+      { start_datetime: "2026-03-23T18:30:00-05:00", end_datetime: "2026-03-23T19:30:00-05:00" },
+    ];
+    fixEndTimes(events, "wrestling every Monday 6:30-8:00pm");
+    expect(events[0].end_datetime).toBe("2026-03-23T20:00:00-05:00");
+  });
+
+  it("corrects with dash and spaces", () => {
+    const events = [
+      { start_datetime: "2026-03-23T18:30:00-05:00", end_datetime: "2026-03-23T19:30:00-05:00" },
+    ];
+    fixEndTimes(events, "practice 6:30 - 8:00 PM at the gym");
+    expect(events[0].end_datetime).toBe("2026-03-23T20:00:00-05:00");
+  });
+
+  it("does not change when duration is already correct", () => {
+    const events = [
+      { start_datetime: "2026-03-23T18:30:00-05:00", end_datetime: "2026-03-23T20:00:00-05:00" },
+    ];
+    fixEndTimes(events, "practice 6:30-8:00pm");
+    expect(events[0].end_datetime).toBe("2026-03-23T20:00:00-05:00");
+  });
+
+  it("does not change when no time range in text", () => {
+    const events = [
+      { start_datetime: "2026-03-23T18:30:00-05:00", end_datetime: "2026-03-23T19:30:00-05:00" },
+    ];
+    fixEndTimes(events, "dentist appointment Tuesday 3pm");
+    expect(events[0].end_datetime).toBe("2026-03-23T19:30:00-05:00");
+  });
+
+  it("applies fix to all events in batch", () => {
+    const events = [
+      { start_datetime: "2026-03-23T18:30:00-05:00", end_datetime: "2026-03-23T19:30:00-05:00" },
+      { start_datetime: "2026-03-25T18:30:00-05:00", end_datetime: "2026-03-25T19:30:00-05:00" },
+    ];
+    fixEndTimes(events, "wrestling Mon and Wed 6:30-8:00pm");
+    expect(events[0].end_datetime).toBe("2026-03-23T20:00:00-05:00");
+    expect(events[1].end_datetime).toBe("2026-03-25T20:00:00-05:00");
   });
 });
 
