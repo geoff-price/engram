@@ -26,12 +26,12 @@ export type ThoughtMetadata = z.infer<typeof metadataSchema>;
 export const calendarExtractionSchema = z.object({
   events: z.array(
     z.object({
-      title: z.string(),
+      title: z.string().describe("Short event title, 5 words max"),
       start_datetime: z.string(),
       end_datetime: z.string(),
       location: z.string().optional(),
       person: z.string().optional(),
-      description: z.string().optional(),
+      description: z.string().describe("All additional details, notes, requirements, and context from the original text that don't fit in the title. Always populate this if there is any extra information."),
     }),
   ),
 });

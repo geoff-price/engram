@@ -129,6 +129,7 @@ describe("calendarExtractionSchema", () => {
           end_datetime: "2026-03-21T11:00:00-04:00",
           location: "City Park",
           person: "Jonah",
+          description: "Bring snacks and folding chairs",
         },
       ],
     };
@@ -145,12 +146,14 @@ describe("calendarExtractionSchema", () => {
           title: "Game 1",
           start_datetime: "2026-03-21T10:00:00-04:00",
           end_datetime: "2026-03-21T11:00:00-04:00",
+          description: "",
         },
         {
           title: "Game 2",
           start_datetime: "2026-03-22T14:00:00-04:00",
           end_datetime: "2026-03-22T15:00:00-04:00",
           person: "Bob",
+          description: "Wear blue jersey",
         },
       ],
     };
