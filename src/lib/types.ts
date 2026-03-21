@@ -31,6 +31,7 @@ export const calendarExtractionSchema = z.object({
       end_datetime: z.string(),
       location: z.string().optional(),
       person: z.string().optional(),
+      description: z.string().optional(),
     }),
   ),
 });

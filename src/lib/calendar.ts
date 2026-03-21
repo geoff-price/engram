@@ -11,6 +11,7 @@ interface CalendarEvent {
   start: string;
   end: string;
   location?: string;
+  description?: string;
   colorId?: string;
 }
 
@@ -116,6 +117,9 @@ async function createCalendarEvent(event: CalendarEvent): Promise<string> {
   if (event.location) {
     body.location = event.location;
   }
+  if (event.description) {
+    body.description = event.description;
+  }
   if (event.colorId) {
     body.colorId = event.colorId;
   }
@@ -208,6 +212,7 @@ export async function createCalendarEvents(
     end_datetime: string;
     location?: string;
     person?: string;
+    description?: string;
   }>,
 ): Promise<CalendarEventResult[]> {
   const results: CalendarEventResult[] = [];
@@ -220,6 +225,7 @@ export async function createCalendarEvents(
         start: event.start_datetime,
         end: event.end_datetime,
         location: event.location,
+        description: event.description,
         colorId,
       });
       results.push({
