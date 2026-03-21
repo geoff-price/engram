@@ -170,7 +170,9 @@ export async function POST(req: Request) {
     return Response.json({ ok: true, dedup: true });
   }
 
-  const handler = webhookCallback(getBot(), "std/http");
+  const handler = webhookCallback(getBot(), "std/http", {
+    timeoutMilliseconds: 25_000,
+  });
   // Reconstruct request with already-parsed body
   const newReq = new Request(req.url, {
     method: "POST",
