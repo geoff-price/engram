@@ -1,6 +1,7 @@
 export const maxDuration = 30;
 
 import { Bot, webhookCallback } from "grammy";
+import { neon } from "@neondatabase/serverless";
 import { captureThought } from "@/lib/capture";
 import { searchThoughts } from "@/lib/db";
 import { generateEmbedding } from "@/lib/ai";
@@ -133,19 +134,21 @@ function getBot(): Bot {
   return bot;
 }
 
-// Dedup: track recently processed message IDs to prevent Telegram webhook retries
-const processedMessages = new Set<number>();
-const MAX_PROCESSED = 1000;
-
-function isDuplicate(messageId: number): boolean {
-  if (processedMessages.has(messageId)) return true;
-  processedMessages.add(messageId);
-  // Prevent unbounded growth — clear oldest entries
-  if (processedMessages.size > MAX_PROCESSED) {
-    const first = processedMessages.values().next().value!;
-    processedMessages.delete(first);
-  }
-  return false;
+// Database-level dedup: survives serverless cold starts
+async function isDuplicate(messageId: number): Promise<boolean> {
+  const url = process.env.DATABASE_URL;
+  if (!url) return false; // If no DB, fall through (shouldn't happen in prod)
+  const sql = neon(url);
+  // INSERT ... ON CONFLICT DO NOTHING returns 0 rows if already exists
+  const rows = await sql`
+    INSERT INTO processed_messages (message_id)
+    VALUES (${messageId})
+    ON CONFLICT (message_id) DO NOTHING
+    RETURNING message_id
+  `;
+  // If the insert returned a row, this is a NEW message (not a duplicate)
+  // If it returned nothing, the message_id already existed (duplicate)
+  return rows.length === 0;
 }
 
 export async function POST(req: Request) {
@@ -160,9 +163,10 @@ export async function POST(req: Request) {
   }
 
   // Check for duplicate webhook delivery (Telegram retries on timeout)
+  // Uses database-level dedup — survives serverless cold starts
   const body = await req.json();
   const messageId = body?.message?.message_id ?? body?.edited_message?.message_id;
-  if (messageId && isDuplicate(messageId)) {
+  if (messageId && await isDuplicate(messageId)) {
     return Response.json({ ok: true, dedup: true });
   }
 
