@@ -96,11 +96,12 @@ function createBot(): Bot {
       });
       await ctx.reply(result.response || "✓");
     } catch (err) {
-      console.error("[telegram] agent error:", err);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error("[telegram] agent error:", errMsg, err);
       // Fallback: capture as thought if agent fails
       const result = await captureThought(ctx.message.text, "telegram");
       const topics = result.metadata.topics.join(", ") || "none";
-      await ctx.reply(`✓ Captured as ${result.metadata.type}\nTopics: ${topics}`);
+      await ctx.reply(`✓ Captured as ${result.metadata.type}\nTopics: ${topics}\n\n⚠️ Agent: ${errMsg.slice(0, 200)}`);
     }
   });
 
