@@ -12,6 +12,8 @@ describe("detectCalendarTrigger", () => {
     ["please add to my calendar: recital Saturday 2pm", true, "recital Saturday 2pm"],
     ["can you add this to calendar: meeting 9am", true, "meeting 9am"],
     ["Add to calendar: soccer practice 4pm", true, "soccer practice 4pm"],
+    ["Add calendar event: Placement Testing Saturday", true, "Placement Testing Saturday"],
+    ["add a calendar event: team dinner Friday", true, "team dinner Friday"],
   ])("detects trigger in: %s", (input, triggered, expectedClean) => {
     const result = detectCalendarTrigger(input);
     expect(result.triggered).toBe(triggered);

@@ -8,7 +8,7 @@ import {
 import type { ThoughtMetadata, CalendarEventResult } from "./types";
 
 const CALENDAR_TRIGGER =
-  /(?:please\s+|can\s+you\s+)?(?:add|put)\s+(?:this\s+)?(?:to|on)\s+(?:my\s+)?calendar[:\s\u2014\u2013-]*/i;
+  /(?:please\s+|can\s+you\s+)?(?:(?:add|put)\s+(?:this\s+)?(?:to|on)\s+(?:my\s+)?calendar|add\s+(?:a\s+)?calendar\s+event)[:\s\u2014\u2013-]*/i;
 
 const FAMILY_MEMBERS = ["sarah", "sydnie", "jonah", "family"];
 
