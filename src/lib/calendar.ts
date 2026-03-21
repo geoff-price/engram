@@ -215,7 +215,7 @@ export async function createCalendarEvents(
     description?: string;
   }>,
 ): Promise<CalendarEventResult[]> {
-  const MAX_EVENTS = 10;
+  const MAX_EVENTS = 50;
   const results: CalendarEventResult[] = [];
   const capped = events.slice(0, MAX_EVENTS);
 
@@ -225,43 +225,50 @@ export async function createCalendarEvents(
       start: "",
       end: "",
       status: "failed",
-      error: `Only ${MAX_EVENTS} events can be created at once. For recurring events, consider using Google Calendar's repeat feature.`,
+      error: `Only ${MAX_EVENTS} events can be created at once.`,
     });
   }
 
-  for (const event of capped) {
-    const colorId = resolveColorId(event.person);
-    try {
-      const eventId = await createCalendarEvent({
-        title: event.title,
-        start: event.start_datetime,
-        end: event.end_datetime,
-        location: event.location,
-        description: event.description,
-        colorId,
-      });
-      results.push({
-        title: event.title,
-        start: event.start_datetime,
-        end: event.end_datetime,
-        location: event.location,
-        person: event.person,
-        color_id: colorId,
-        event_id: eventId,
-        status: "created",
-      });
-    } catch (error) {
-      results.push({
-        title: event.title,
-        start: event.start_datetime,
-        end: event.end_datetime,
-        location: event.location,
-        person: event.person,
-        color_id: colorId,
-        status: "failed",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
+  // Create events in parallel (batches of 10 to avoid rate limits)
+  for (let i = 0; i < capped.length; i += 10) {
+    const batch = capped.slice(i, i + 10);
+    const batchResults = await Promise.all(
+      batch.map(async (event) => {
+        const colorId = resolveColorId(event.person);
+        try {
+          const eventId = await createCalendarEvent({
+            title: event.title,
+            start: event.start_datetime,
+            end: event.end_datetime,
+            location: event.location,
+            description: event.description,
+            colorId,
+          });
+          return {
+            title: event.title,
+            start: event.start_datetime,
+            end: event.end_datetime,
+            location: event.location,
+            person: event.person,
+            color_id: colorId,
+            event_id: eventId,
+            status: "created" as const,
+          };
+        } catch (error) {
+          return {
+            title: event.title,
+            start: event.start_datetime,
+            end: event.end_datetime,
+            location: event.location,
+            person: event.person,
+            color_id: colorId,
+            status: "failed" as const,
+            error: error instanceof Error ? error.message : "Unknown error",
+          };
+        }
+      }),
+    );
+    results.push(...batchResults);
   }
 
   return results;
