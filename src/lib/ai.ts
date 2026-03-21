@@ -50,7 +50,7 @@ Text: "${content}"
 Rules:
 - title: short, human-readable event title
 - start_datetime: ISO 8601 with timezone offset, resolved against today's date (handle "tomorrow", "next Monday", "this Saturday", etc.)
-- end_datetime: ISO 8601 with timezone offset (default to 1 hour after start if duration not stated)
+- end_datetime: ISO 8601 with timezone offset. CRITICAL: If the text specifies an end time (e.g. "6:30-8:00pm", "until 5pm", "ends at 9"), you MUST use that exact end time. Only default to 1 hour after start if absolutely no end time or duration is mentioned.
 - location: extract only if explicitly mentioned, omit otherwise
 - person: the family member this event is for. If a name (e.g. "Jonah", "Sarah", "Sydnie") is mentioned ANYWHERE in the text — even just once at the beginning — set person to that name on EVERY event extracted. Only omit person if no family member name appears at all.
 - description: IMPORTANT — put ALL additional details, notes, or context here that don't belong in the title. This includes instructions ("bring snacks"), requirements ("Math placement is required"), agendas, attendees, or any other info from the original text. The title should be short; everything else goes in description.
