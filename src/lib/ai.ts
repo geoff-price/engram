@@ -53,7 +53,7 @@ Rules:
 - end_datetime: ISO 8601 with timezone offset (default to 1 hour after start if duration not stated)
 - location: extract only if explicitly mentioned, omit otherwise
 - person: the family member this event is for — extract the most relevant name if mentioned, omit if the event is clearly for the message sender
-- description: any additional details, notes, or context beyond the title/time/location (e.g. "bring snacks", "wear uniform", "pick up at 5pm"). Omit if there are no extra details.
+- description: IMPORTANT — put ALL additional details, notes, or context here that don't belong in the title. This includes instructions ("bring snacks"), requirements ("Math placement is required"), agendas, attendees, or any other info from the original text. The title should be short; everything else goes in description.
 - Only extract events with a specific, resolvable date and time
 - Skip anything vague ("sometime next week", "soon")
 - If the text contains multiple events (e.g. a schedule), extract each one separately`,
