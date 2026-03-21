@@ -36,6 +36,41 @@ describe("detectCalendarTrigger", () => {
     // Falls back to original content when cleaned is empty
     expect(result.cleanContent).toBe("add to my calendar");
   });
+
+  it("extracts Jonah as person from trigger", () => {
+    const result = detectCalendarTrigger("Add to my calendar, Jonah: soccer game Saturday 10am");
+    expect(result.triggered).toBe(true);
+    expect(result.person).toBe("Jonah");
+    expect(result.cleanContent).toBe("soccer game Saturday 10am");
+  });
+
+  it("extracts Sarah as person from trigger", () => {
+    const result = detectCalendarTrigger("add to my calendar: Sarah: dentist Tuesday 2pm");
+    expect(result.triggered).toBe(true);
+    expect(result.person).toBe("Sarah");
+    expect(result.cleanContent).toBe("dentist Tuesday 2pm");
+  });
+
+  it("extracts Sydnie as person from trigger", () => {
+    const result = detectCalendarTrigger("Add to my calendar, Sydnie: dance recital Friday 6pm");
+    expect(result.triggered).toBe(true);
+    expect(result.person).toBe("Sydnie");
+    expect(result.cleanContent).toBe("dance recital Friday 6pm");
+  });
+
+  it("extracts family as person from trigger", () => {
+    const result = detectCalendarTrigger("add to my calendar: family: lake house trip July 4");
+    expect(result.triggered).toBe(true);
+    expect(result.person).toBe("Family");
+    expect(result.cleanContent).toBe("lake house trip July 4");
+  });
+
+  it("does not extract non-family name as person", () => {
+    const result = detectCalendarTrigger("add to my calendar: dentist appointment Tuesday");
+    expect(result.triggered).toBe(true);
+    expect(result.person).toBeUndefined();
+    expect(result.cleanContent).toBe("dentist appointment Tuesday");
+  });
 });
 
 describe("resolveColorId", () => {

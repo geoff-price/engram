@@ -10,15 +10,33 @@ import type { ThoughtMetadata, CalendarEventResult } from "./types";
 const CALENDAR_TRIGGER =
   /(?:please\s+|can\s+you\s+)?(?:add|put)\s+(?:this\s+)?(?:to|on)\s+(?:my\s+)?calendar[:\s\u2014\u2013-]*/i;
 
+const FAMILY_MEMBERS = ["sarah", "sydnie", "jonah", "family"];
+
 export function detectCalendarTrigger(content: string): {
   triggered: boolean;
   cleanContent: string;
+  person?: string;
 } {
   if (!CALENDAR_TRIGGER.test(content)) {
     return { triggered: false, cleanContent: content };
   }
-  const cleaned = content.replace(CALENDAR_TRIGGER, "").trim();
-  return { triggered: true, cleanContent: cleaned || content };
+  let cleaned = content.replace(CALENDAR_TRIGGER, "").trim();
+  // Strip leading punctuation (comma, colon, dash) left after trigger removal
+  cleaned = cleaned.replace(/^[,:\s\u2014\u2013-]+/, "").trim();
+  if (!cleaned) return { triggered: true, cleanContent: content };
+
+  // Check if the first word after the trigger is a family member name
+  const match = cleaned.match(/^(\w+)[,:\s]/);
+  const firstWord = match?.[1]?.toLowerCase();
+  let person: string | undefined;
+
+  if (firstWord && FAMILY_MEMBERS.includes(firstWord)) {
+    person = firstWord.charAt(0).toUpperCase() + firstWord.slice(1);
+    // Remove the person name (and trailing punctuation/whitespace) from content
+    cleaned = cleaned.replace(/^\w+[,:\s]+/, "").trim();
+  }
+
+  return { triggered: true, cleanContent: cleaned || content, person };
 }
 
 export async function captureThought(
@@ -51,6 +69,13 @@ export async function captureThought(
   const storedMetadata: Record<string, unknown> = { ...metadata };
 
   if (calendarExtraction?.events?.length) {
+    // Override person on all events if detected from trigger phrase
+    const { person } = detectCalendarTrigger(content);
+    if (person) {
+      for (const event of calendarExtraction.events) {
+        event.person = person;
+      }
+    }
     calendarResults = await createCalendarEvents(calendarExtraction.events);
     storedMetadata.is_calendar_event = true;
     storedMetadata.calendar_events = calendarResults;
