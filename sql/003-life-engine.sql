@@ -1,7 +1,7 @@
 -- Life Engine tables: habits, checkins, briefings, evolution
 -- Reuses update_updated_at() trigger from 001-create-thoughts.sql
 
-CREATE TABLE habits (
+CREATE TABLE IF NOT EXISTS habits (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   frequency TEXT NOT NULL CHECK (frequency IN ('daily', 'weekly', 'weekdays', 'specific_days')),
@@ -11,20 +11,21 @@ CREATE TABLE habits (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+DROP TRIGGER IF EXISTS habits_updated_at ON habits;
 CREATE TRIGGER habits_updated_at
   BEFORE UPDATE ON habits FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-CREATE TABLE habit_log (
+CREATE TABLE IF NOT EXISTS habit_log (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   habit_id UUID NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
   notes TEXT,
   completed_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX habit_log_completed_at_idx ON habit_log (completed_at DESC);
-CREATE INDEX habit_log_habit_id_idx ON habit_log (habit_id);
+CREATE INDEX IF NOT EXISTS habit_log_completed_at_idx ON habit_log (completed_at DESC);
+CREATE INDEX IF NOT EXISTS habit_log_habit_id_idx ON habit_log (habit_id);
 
-CREATE TABLE checkins (
+CREATE TABLE IF NOT EXISTS checkins (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   mood INTEGER NOT NULL CHECK (mood BETWEEN 1 AND 5),
   energy INTEGER NOT NULL CHECK (energy BETWEEN 1 AND 5),
@@ -32,9 +33,9 @@ CREATE TABLE checkins (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX checkins_created_at_idx ON checkins (created_at DESC);
+CREATE INDEX IF NOT EXISTS checkins_created_at_idx ON checkins (created_at DESC);
 
-CREATE TABLE briefings (
+CREATE TABLE IF NOT EXISTS briefings (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   type TEXT NOT NULL CHECK (type IN ('morning', 'pre_meeting', 'midday', 'evening')),
   content TEXT NOT NULL,
@@ -42,9 +43,9 @@ CREATE TABLE briefings (
   sent_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX briefings_type_sent_at_idx ON briefings (type, sent_at DESC);
+CREATE INDEX IF NOT EXISTS briefings_type_sent_at_idx ON briefings (type, sent_at DESC);
 
-CREATE TABLE evolution (
+CREATE TABLE IF NOT EXISTS evolution (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   change_type TEXT NOT NULL,
   description TEXT NOT NULL,
@@ -54,7 +55,8 @@ CREATE TABLE evolution (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX evolution_status_idx ON evolution (status);
+CREATE INDEX IF NOT EXISTS evolution_status_idx ON evolution (status);
 
+DROP TRIGGER IF EXISTS evolution_updated_at ON evolution;
 CREATE TRIGGER evolution_updated_at
   BEFORE UPDATE ON evolution FOR EACH ROW EXECUTE FUNCTION update_updated_at();

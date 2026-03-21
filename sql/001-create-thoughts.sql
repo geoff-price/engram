@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE TABLE thoughts (
+CREATE TABLE IF NOT EXISTS thoughts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   content TEXT NOT NULL,
   embedding VECTOR(1536),
@@ -10,13 +10,14 @@ CREATE TABLE thoughts (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX thoughts_embedding_idx ON thoughts USING hnsw (embedding vector_cosine_ops);
-CREATE INDEX thoughts_metadata_idx ON thoughts USING gin (metadata);
-CREATE INDEX thoughts_created_at_idx ON thoughts (created_at DESC);
+CREATE INDEX IF NOT EXISTS thoughts_embedding_idx ON thoughts USING hnsw (embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS thoughts_metadata_idx ON thoughts USING gin (metadata);
+CREATE INDEX IF NOT EXISTS thoughts_created_at_idx ON thoughts (created_at DESC);
 
 -- Auto-update trigger
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END; $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS thoughts_updated_at ON thoughts;
 CREATE TRIGGER thoughts_updated_at
   BEFORE UPDATE ON thoughts FOR EACH ROW EXECUTE FUNCTION update_updated_at();
