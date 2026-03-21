@@ -34,7 +34,14 @@ function formatCalendarReceipt(results: CalendarEventResult[]): string {
   }
 
   if (failed.length > 0) {
-    text += `\n\n⚠️ ${failed.length} event${failed.length > 1 ? "s" : ""} failed to add to calendar`;
+    const capWarning = failed.find((e) => e.title.startsWith("⚠️"));
+    if (capWarning) {
+      text += `\n\n${capWarning.title}\n${capWarning.error}`;
+    }
+    const realFails = failed.filter((e) => !e.title.startsWith("⚠️"));
+    if (realFails.length > 0) {
+      text += `\n\n⚠️ ${realFails.length} event${realFails.length > 1 ? "s" : ""} failed to add to calendar`;
+    }
   }
 
   return text;
@@ -123,6 +130,21 @@ function getBot(): Bot {
   return bot;
 }
 
+// Dedup: track recently processed message IDs to prevent Telegram webhook retries
+const processedMessages = new Set<number>();
+const MAX_PROCESSED = 1000;
+
+function isDuplicate(messageId: number): boolean {
+  if (processedMessages.has(messageId)) return true;
+  processedMessages.add(messageId);
+  // Prevent unbounded growth — clear oldest entries
+  if (processedMessages.size > MAX_PROCESSED) {
+    const first = processedMessages.values().next().value!;
+    processedMessages.delete(first);
+  }
+  return false;
+}
+
 export async function POST(req: Request) {
   // Validate Telegram webhook secret — reject if not configured or mismatched
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -134,6 +156,19 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid webhook secret" }, { status: 401 });
   }
 
+  // Check for duplicate webhook delivery (Telegram retries on timeout)
+  const body = await req.json();
+  const messageId = body?.message?.message_id ?? body?.edited_message?.message_id;
+  if (messageId && isDuplicate(messageId)) {
+    return Response.json({ ok: true, dedup: true });
+  }
+
   const handler = webhookCallback(getBot(), "std/http");
-  return handler(req);
+  // Reconstruct request with already-parsed body
+  const newReq = new Request(req.url, {
+    method: "POST",
+    headers: req.headers,
+    body: JSON.stringify(body),
+  });
+  return handler(newReq);
 }

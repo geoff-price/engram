@@ -215,9 +215,21 @@ export async function createCalendarEvents(
     description?: string;
   }>,
 ): Promise<CalendarEventResult[]> {
+  const MAX_EVENTS = 10;
   const results: CalendarEventResult[] = [];
+  const capped = events.slice(0, MAX_EVENTS);
 
-  for (const event of events) {
+  if (events.length > MAX_EVENTS) {
+    results.push({
+      title: `⚠️ ${events.length - MAX_EVENTS} additional events skipped`,
+      start: "",
+      end: "",
+      status: "failed",
+      error: `Only ${MAX_EVENTS} events can be created at once. For recurring events, consider using Google Calendar's repeat feature.`,
+    });
+  }
+
+  for (const event of capped) {
     const colorId = resolveColorId(event.person);
     try {
       const eventId = await createCalendarEvent({
