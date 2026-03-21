@@ -84,27 +84,24 @@ function createBot(): Bot {
     return ctx.reply(text);
   });
 
-  // Capture any text message
+  // Route all non-command messages through the life engine agent
   bot.on("message:text", async (ctx) => {
-    // Skip commands (already handled above)
     if (ctx.message.text.startsWith("/")) return;
 
-    const result = await captureThought(ctx.message.text, "telegram");
-    let reply: string;
-
-    if (result.calendarResults?.length) {
-      // Calendar-focused reply — skip metadata noise
-      reply = "✓ Saved" + formatCalendarReceipt(result.calendarResults);
-    } else {
-      // Normal thought reply
+    try {
+      const { runLifeEngine } = await import("@/lib/life-engine-agent");
+      const result = await runLifeEngine({
+        mode: "reactive",
+        userMessage: ctx.message.text,
+      });
+      await ctx.reply(result.response || "✓");
+    } catch (err) {
+      console.error("[telegram] agent error:", err);
+      // Fallback: capture as thought if agent fails
+      const result = await captureThought(ctx.message.text, "telegram");
       const topics = result.metadata.topics.join(", ") || "none";
-      reply = `✓ Captured as ${result.metadata.type}\nTopics: ${topics}`;
-      if (result.metadata.action_items.length) {
-        reply += `\nAction items: ${result.metadata.action_items.join("; ")}`;
-      }
+      await ctx.reply(`✓ Captured as ${result.metadata.type}\nTopics: ${topics}`);
     }
-
-    await ctx.reply(reply);
   });
 
   // Capture photo captions

@@ -2,8 +2,8 @@
   "framework": "nextjs",
   "crons": [
     {
-      "path": "/api/cron/briefing",
-      "schedule": "0 7 * * *"
+      "path": "/api/cron/life-engine",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
