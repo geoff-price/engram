@@ -115,7 +115,7 @@ function createBot(): Bot {
       // Fallback: capture as thought if agent fails
       const result = await captureThought(ctx.message.text, "telegram");
       const topics = result.metadata.topics.join(", ") || "none";
-      await ctx.reply(`✓ Captured as ${result.metadata.type}\nTopics: ${topics}\n\n⚠️ Agent: ${errMsg.slice(0, 200)}`);
+      await ctx.reply(`✓ Captured as ${result.metadata.type}\nTopics: ${topics}`);
     }
   });
 
