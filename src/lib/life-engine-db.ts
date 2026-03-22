@@ -48,33 +48,18 @@ export async function updateHabit(
   id: string,
   fields: Partial<Pick<Habit, "name" | "frequency" | "time_of_day" | "active">>,
 ): Promise<void> {
+  if (Object.keys(fields).length === 0) return;
   const sql = getSQL();
-  const sets: string[] = [];
-  const params: (string | boolean | null)[] = [];
-  let idx = 1;
-
-  if (fields.name !== undefined) {
-    sets.push(`name = $${idx++}`);
-    params.push(fields.name);
-  }
-  if (fields.frequency !== undefined) {
-    sets.push(`frequency = $${idx++}`);
-    params.push(fields.frequency);
-  }
-  if (fields.time_of_day !== undefined) {
-    sets.push(`time_of_day = $${idx++}`);
-    params.push(fields.time_of_day);
-  }
-  if (fields.active !== undefined) {
-    sets.push(`active = $${idx++}`);
-    params.push(fields.active);
-  }
-
-  if (sets.length === 0) return;
-
-  params.push(id);
-  const query = `UPDATE habits SET ${sets.join(", ")} WHERE id = $${idx}`;
-  await sql.query(query, params);
+  // Use COALESCE pattern: each field updates only if a new value is provided,
+  // otherwise keeps the existing value. All parameterized via tagged template.
+  await sql`
+    UPDATE habits SET
+      name = COALESCE(${fields.name ?? null}, name),
+      frequency = COALESCE(${fields.frequency ?? null}, frequency),
+      time_of_day = COALESCE(${fields.time_of_day ?? null}, time_of_day),
+      active = COALESCE(${fields.active ?? null}, active)
+    WHERE id = ${id}
+  `;
 }
 
 export async function deactivateHabit(id: string): Promise<void> {

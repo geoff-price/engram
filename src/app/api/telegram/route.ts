@@ -55,6 +55,18 @@ function createBot(): Bot {
 
   const bot = new Bot(token);
 
+  // Sender authentication — only allow messages from the configured chat
+  const allowedChatId = process.env.TELEGRAM_CHAT_ID
+    ? Number(process.env.TELEGRAM_CHAT_ID)
+    : null;
+
+  bot.use((ctx, next) => {
+    // Allow /start from anyone (so new users can get their chat ID)
+    if (ctx.message?.text?.startsWith("/start")) return next();
+    if (allowedChatId && ctx.chat?.id !== allowedChatId) return;
+    return next();
+  });
+
   bot.command("start", (ctx) => {
     const chatId = ctx.chat.id;
     return ctx.reply(
@@ -88,6 +100,9 @@ function createBot(): Bot {
   // Route all non-command messages through the life engine agent
   bot.on("message:text", async (ctx) => {
     if (ctx.message.text.startsWith("/")) return;
+    if (isRateLimited(ctx.chat.id)) {
+      return ctx.reply("Slow down — too many messages. Try again in a minute.");
+    }
 
     try {
       const { runLifeEngine } = await import("@/lib/life-engine-agent");
@@ -144,6 +159,19 @@ let bot: Bot | undefined;
 function getBot(): Bot {
   if (!bot) bot = createBot();
   return bot;
+}
+
+// Simple rate limiter: max 10 agent calls per minute per chat
+const rateLimitMap = new Map<number, number[]>();
+function isRateLimited(chatId: number): boolean {
+  const now = Date.now();
+  const windowMs = 60_000;
+  const maxRequests = 10;
+  const timestamps = (rateLimitMap.get(chatId) ?? []).filter((t) => now - t < windowMs);
+  if (timestamps.length >= maxRequests) return true;
+  timestamps.push(now);
+  rateLimitMap.set(chatId, timestamps);
+  return false;
 }
 
 // Database-level dedup: survives serverless cold starts

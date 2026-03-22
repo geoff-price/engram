@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   } catch (err) {
     console.error("[life-engine cron] error:", err);
     return Response.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
+      { error: "Internal server error" },
       { status: 500 },
     );
   }
